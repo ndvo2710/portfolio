@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+body {
+    margin: 0;
+    font-family: Helvetica,Arial,sans-serif;
+    font-size: 15px;
+    line-height: 18px;
+    color: #333;
+    background-color: #fff;
+}
+
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.legend_text {
+  font-size: 13px;
+}
+
+.inner_line {
+  fill: none;
+  stroke: steelblue;
+  stroke-width: 3px;
+  opacity: 0.3;
+}
+
+.outer_line {
+  fill: none;
+  stroke: steelblue;
+  stroke-width: 7px;
+  opacity: 0;
+}
+
+
+</style>
+<body>
+<script src="//d3js.org/d3.v3.min.js"></script>
+<script>
+
+var slope_margin = {top: 50, right: 200, bottom: 30, left: 50},
+    slope_width = 500 - slope_margin.left - slope_margin.right,
+    slope_height = 1500 - slope_margin.top - slope_margin.bottom;
+
+
+var x = d3.scale.ordinal()
+    .rangePoints([0, slope_width]);
+
+var y = d3.scale.ordinal()
+    .rangePoints([0,slope_height]);
+
+var color = d3.scale.category10();
+
+var xAxis = d3.svg.axis()
+    .scale(x)
+    .orient("bottom");
+
+var yAxis = d3.svg.axis()
+    .scale(y)
+    .orient("left");
+
+var line = d3.svg.line()
+    .interpolate("linear")
+    .x(function(d) { return x(d.x); })
+    .y(function(d) { return y(d.y); });
+
+var svg = d3.select("body").append("svg")
+    .attr("width", slope_width + slope_margin.left + slope_margin.right)
+    .attr("height", slope_height + slope_margin.top + slope_margin.bottom)
+  .append("g")
+    .attr("transform", "translate(" + slope_margin.left + "," + slope_margin.top + ")");
+
+d3.csv("country_rank.csv", function(data) {
+
+  data["rows"] = data.map(function(d) {
+      return d.CNT;
+  });
+
+  var slopes = data.rows.slice(0).map(function(id,i) {
+            return {
+              id: id,
+              values: [{'x': 'math', 'y': data[i]['math']},
+                        {'x': 'read', 'y': data[i]['read']},
+                        {'x': 'science', 'y': data[i]['sci']}]
+            };
+          });
+
+  x.domain(['math', 'read', 'science']);
+
+  var y_range = [];
+  for ( var i = 1; i <= 69; i++) {
+     y_range.push(i);
+  }
+
+  y.domain(y_range);
+
+  color.domain(data.rows.slice(0));
+
+  //debugger;
+  svg.append("g")
+      .attr("class", "x axis")
+      .attr("transform", "translate(0," + slope_height + ")")
+      .call(xAxis)
+        .selectAll("text")
+        .style("text-anchor", "start")
+        .style("text-transform", 'uppercase');
+
+  svg.append("g")
+      .attr("class", "y axis")
+      .call(yAxis)
+    .append("text")
+      .attr("x", 100)
+      .attr("dy", "-.71em")
+      .style("text-anchor", "end")
+      .text("Ranking");
+
+  var slope = svg.selectAll(".slope")
+      .data(slopes)
+    .enter().append("g")
+      .attr('id', function(d) { return 'country '+ d.id})
+      .attr("class", "g_slope");
+
+
+  slope.append("path")
+      .attr("class", "outer_line")
+      .attr('id', function(d) {return 'outer_'+d.id})
+      .attr("d", function(d) { return line(d.values); })
+      .style("stroke", function(d) { return color(d.id); });
+
+
+  slope.append("path")
+      .attr("class", "inner_line")
+      .attr('id', function(d) {return 'inner_'+d.id})
+      .attr("d", function(d) { return line(d.values); })
+      .style("stroke", function(d) { return color(d.id); });
+
+  slope.append("rect")
+      .datum(function(d) {return {id: d.id, value: d.values[d.values.length - 1]}; })
+      .attr("class", function(d) { return d.id + ' legendbox'})
+      .attr("transform", function(d) {return "translate(" + (x(d.value.x) + 5) + "," + (y(d.value.y) - 8) + ")"; })
+      .attr("x", 3)
+      .attr({
+          'width' : 140,
+          'height' : 20,
+          'rx': 4,
+          'ry': 4,
+          'opacity': 0.4,
+          'fill': '#E3E3E3'
+      })
+      .on('mouseover', function(d) {
+          d3.selectAll('#outer_' +d.id).style('opacity','0.7');
+
+      });
+
+  slope.append("text")
+      .datum(function(d) { return {id: d.id, value: d.values[d.values.length - 1]}; })
+      .attr("transform", function(d) {return "translate(" + (x(d.value.x) + 15) + "," + y(d.value.y) + ")"; })
+      .attr('id', function(d) { return 'text_' + d.id})
+      .attr("class", "legend_text")
+      .attr("x", 3)
+      .attr("dy", ".35em")
+      .attr('opacity', 0.7)
+      .text(function(d) { return d.id; });
+
+  d3.select('#text_Perm-RussianFederation')
+    .text('Perm-RF');
+  d3.select('#text_Perm-RussianFederation')
+    .text('Perm-RF');
+
+  for (var i = 0; i < 3; i++) {
+    slope.append("circle")
+      .attr("class", function(d) { return d.id + ' match';})
+      .attr({
+          'opacity' : 0.8,
+          'r' : 2.5,
+          'cx' : function(d) { return x(d.values[i].x) } ,
+          'cy' : function(d) { return y(d.values[i].y) },
+          'fill' : function(d) { return color(d.id)}
+        });
+  };
+
+
+
+
+});
+
+</script>
